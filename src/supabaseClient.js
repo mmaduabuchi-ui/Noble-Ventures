@@ -1,12 +1,87 @@
-import { createClient } from "@supabase/supabase-js"
+import React, { useState, useEffect } from "react";
+import { supabase } from "./supabaseClient"; // 👈 your client
 
-// 👇 Replace with your own from Supabase dashboard
-const supabaseUrl = "https://bnjcwhnapqfwdqfrobzn.supabase.co"
-const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJuamN3aG5hcHFmd2RxZnJvYnpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg0Mzc0NDksImV4cCI6MjA3NDAxMzQ0OX0.PN1IfxN_cpYVokont55ZTIrmGSEglB4FL0sj2pf9gZ8"
+function App() {
+  const [items, setItems] = useState([]);
 
-export const supabase = createClient(supabaseUrl, supabaseKey, {
-  auth: {
-    persistSession: true,   // 👈 keeps you logged in
-    autoRefreshToken: true, // 👈 refreshes expired tokens
-  },
-})
+  // Fetch items from Supabase when app loads
+  useEffect(() => {
+    const fetchItems = async () => {
+      const { data, error } = await supabase.from("items").select("*");
+      if (error) {
+        console.error("Error fetching items:", error);
+      } else {
+        setItems(data || []);
+      }
+    };
+    fetchItems();
+  }, []);
+
+  // Add new item
+  const addItem = async (newItem) => {
+    const { data, error } = await supabase
+      .from("items")
+      .insert([newItem])
+      .select();
+    if (error) {
+      console.error("Error adding item:", error);
+    } else {
+      setItems((prev) => [...prev, ...data]);
+    }
+  };
+
+  // Delete item
+  const deleteItem = async (id) => {
+    const { error } = await supabase.from("items").delete().eq("id", id);
+    if (error) {
+      console.error("Error deleting item:", error);
+    } else {
+      setItems((prev) => prev.filter((item) => item.id !== id));
+    }
+  };
+
+  // Update item (e.g., mark sold/not sold)
+  const updateItem = async (id, updates) => {
+    const { data, error } = await supabase
+      .from("items")
+      .update(updates)
+      .eq("id", id)
+      .select();
+    if (error) {
+      console.error("Error updating item:", error);
+    } else {
+      setItems((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, ...updates } : item))
+      );
+    }
+  };
+
+  // Your existing UI & Monthly Audit code stays the same
+  return (
+    <div>
+      <h1>Noble Ventures</h1>
+      {/* Example usage */}
+      <button
+        onClick={() =>
+          addItem({ name: "New Item", sold: false, price: 100, created_at: new Date() })
+        }
+      >
+        Add Item
+      </button>
+
+      {items.map((item) => (
+        <div key={item.id}>
+          <p>
+            {item.name} - {item.sold ? "Sold" : "Not Sold"} - ₦{item.price}
+          </p>
+          <button onClick={() => updateItem(item.id, { sold: !item.sold })}>
+            Toggle Sold
+          </button>
+          <button onClick={() => deleteItem(item.id)}>Delete</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export default App;
