@@ -4,8 +4,9 @@ import { supabase } from "./supabaseClient"; // 👈 your client
 function App() {
   const [items, setItems] = useState([]);
 
-  // Fetch items from Supabase when app loads
+  // Fetch items from Supabase and subscribe to Realtime updates
   useEffect(() => {
+    // 1️⃣ Fetch initial items
     const fetchItems = async () => {
       const { data, error } = await supabase.from("items").select("*");
       if (error) {
@@ -15,6 +16,37 @@ function App() {
       }
     };
     fetchItems();
+
+    // 2️⃣ Subscribe to Realtime updates
+    const subscription = supabase
+      .channel("public:items")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "items" },
+        (payload) => {
+          const { eventType, new: newRow, old: oldRow } = payload;
+          setItems((prevItems) => {
+            switch (eventType) {
+              case "INSERT":
+                return [...prevItems, newRow];
+              case "UPDATE":
+                return prevItems.map((item) =>
+                  item.id === newRow.id ? newRow : item
+                );
+              case "DELETE":
+                return prevItems.filter((item) => item.id !== oldRow.id);
+              default:
+                return prevItems;
+            }
+          });
+        }
+      )
+      .subscribe();
+
+    // 3️⃣ Cleanup on unmount
+    return () => {
+      supabase.removeChannel(subscription);
+    };
   }, []);
 
   // Add new item
