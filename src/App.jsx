@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { supabase } from "./supabaseClient";
 
 export default function App() {
   const [pages, setPages] = useState([
@@ -10,48 +11,11 @@ export default function App() {
   const [showAudit, setShowAudit] = useState(false);
 
   const styles = {
-    tabBar: {
-      display: "flex",
-      flexDirection: "row",
-      gap: 8,
-      alignItems: "center",
-      paddingBottom: 8,
-      overflowX: "auto",
-      whiteSpace: "nowrap",
-    },
-    tab: (active) => ({
-      display: "inline-flex",
-      alignItems: "center",
-      gap: 8,
-      padding: "6px 10px",
-      borderRadius: 6,
-      cursor: "pointer",
-      background: active ? "#2563EB" : "#E5E7EB",
-      color: active ? "#fff" : "#111827",
-      minWidth: 100,
-      boxSizing: "border-box",
-    }),
-    tabInput: {
-      background: "transparent",
-      border: "none",
-      borderBottom: "1px solid rgba(0,0,0,0.2)",
-      outline: "none",
-      width: "100%",
-      textAlign: "center",
-      color: "inherit",
-    },
-    iconButton: {
-      background: "transparent",
-      border: "none",
-      cursor: "pointer",
-      fontSize: 16,
-      color: "inherit",
-    },
-    table: {
-      width: "100%",
-      borderCollapse: "collapse",
-      marginTop: 12,
-    },
+    tabBar: { display: "flex", flexDirection: "row", gap: 8, alignItems: "center", paddingBottom: 8, overflowX: "auto", whiteSpace: "nowrap" },
+    tab: (active) => ({ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 10px", borderRadius: 6, cursor: "pointer", background: active ? "#2563EB" : "#E5E7EB", color: active ? "#fff" : "#111827", minWidth: 100 }),
+    tabInput: { background: "transparent", border: "none", borderBottom: "1px solid rgba(0,0,0,0.2)", outline: "none", width: "100%", textAlign: "center", color: "inherit" },
+    iconButton: { background: "transparent", border: "none", cursor: "pointer", fontSize: 16, color: "inherit" },
+    table: { width: "100%", borderCollapse: "collapse", marginTop: 12 },
     th: { border: "1px solid #D1D5DB", padding: 8, background: "#F3F4F6" },
     td: { border: "1px solid #D1D5DB", padding: 8 },
   };
@@ -134,24 +98,61 @@ export default function App() {
       )
     : [];
 
-  // --- Audit calculations ---
   const auditSummary = () => {
     if (!activePage) return { soldCount: 0, notSoldCount: 0, profit: 0 };
-
     const soldRows = activePage.rows.filter((r) => r.sold);
     const notSoldRows = activePage.rows.filter((r) => !r.sold);
-
     const totalSold = soldRows.reduce((sum, r) => sum + Number(r.priceSold || 0), 0);
     const totalOriginal = soldRows.reduce((sum, r) => sum + Number(r.originalPrice || 0), 0);
+    return { soldCount: soldRows.length, notSoldCount: notSoldRows.length, profit: totalSold - totalOriginal };
+  };
+  const { soldCount, notSoldCount, profit } = auditSummary();
 
-    return {
-      soldCount: soldRows.length,
-      notSoldCount: notSoldRows.length,
-      profit: totalSold - totalOriginal,
-    };
+  const saveData = async () => {
+    if (!activePage) return;
+    try {
+      const rowsToInsert = activePage.rows.map((r) => ({
+        product_name: r.productName,
+        original_price: r.originalPrice,
+        price_sold: r.priceSold,
+        sold: r.sold,
+      }));
+      const { error } = await supabase.from("products").upsert(rowsToInsert);
+      if (error) throw error;
+      alert("✅ Products saved successfully!");
+    } catch (err) {
+      console.error(err);
+      alert("❌ Error saving products!");
+    }
   };
 
-  const { soldCount, notSoldCount, profit } = auditSummary();
+  const loadData = async () => {
+    try {
+      const { data, error } = await supabase.from("products").select("*");
+      if (error) throw error;
+      if (data) {
+        setPages((prev) =>
+          prev.map((p) =>
+            p.id === activePageId
+              ? {
+                  ...p,
+                  rows: data.map((d) => ({
+                    id: d.id,
+                    productName: d.product_name,
+                    originalPrice: d.original_price,
+                    priceSold: d.price_sold,
+                    sold: d.sold,
+                  })),
+                }
+              : p
+          )
+        );
+      }
+    } catch (err) {
+      console.error(err);
+      alert("❌ Error loading products!");
+    }
+  };
 
   return (
     <div style={{ padding: 18, maxWidth: 1100, margin: "0 auto" }}>
@@ -162,11 +163,7 @@ export default function App() {
         {pages.map((page) => {
           const active = page.id === activePageId;
           return (
-            <div
-              key={page.id}
-              style={styles.tab(active)}
-              onClick={() => setActivePageId(page.id)}
-            >
+            <div key={page.id} style={styles.tab(active)} onClick={() => setActivePageId(page.id)}>
               <input
                 style={styles.tabInput}
                 value={page.date}
@@ -185,19 +182,7 @@ export default function App() {
             </div>
           );
         })}
-
-        <button
-          onClick={addPage}
-          style={{
-            padding: "6px 10px",
-            borderRadius: 6,
-            background: "#10B981",
-            color: "#fff",
-            border: "none",
-            cursor: "pointer",
-            whiteSpace: "nowrap",
-          }}
-        >
+        <button onClick={addPage} style={{ padding: "6px 10px", borderRadius: 6, background: "#10B981", color: "#fff", border: "none", cursor: "pointer", whiteSpace: "nowrap" }}>
           ➕ New Page
         </button>
       </div>
@@ -235,7 +220,7 @@ export default function App() {
                 </tr>
               ) : (
                 filteredRows.map((row, idx) => (
-                  <tr key={row.id}>
+                  <tr key={row.id || idx}>
                     <td style={styles.td}>{idx + 1}</td>
                     <td style={styles.td}>
                       <input
@@ -261,23 +246,10 @@ export default function App() {
                       />
                     </td>
                     <td style={{ ...styles.td, textAlign: "center" }}>
-                      <input
-                        type="checkbox"
-                        checked={row.sold}
-                        onChange={(e) => updateRow(row.id, "sold", e.target.checked)}
-                      />
+                      <input type="checkbox" checked={row.sold} onChange={(e) => updateRow(row.id, "sold", e.target.checked)} />
                     </td>
                     <td style={{ ...styles.td, textAlign: "center" }}>
-                      <button
-                        onClick={() => deleteRow(row.id)}
-                        style={{
-                          cursor: "pointer",
-                          color: "#DC2626",
-                          background: "transparent",
-                          border: "none",
-                          fontSize: 16,
-                        }}
-                      >
+                      <button onClick={() => deleteRow(row.id)} style={{ cursor: "pointer", color: "#DC2626", background: "transparent", border: "none", fontSize: 16 }}>
                         🗑️
                       </button>
                     </td>
@@ -287,39 +259,27 @@ export default function App() {
             </tbody>
           </table>
 
-          {/* Add Row */}
           <div style={{ marginTop: 12 }}>
-            <button
-              onClick={addRow}
-              style={{
-                padding: "8px 12px",
-                borderRadius: 6,
-                background: "#2563EB",
-                color: "#fff",
-                border: "none",
-                cursor: "pointer",
-              }}
-            >
+            <button onClick={addRow} style={{ padding: "8px 12px", borderRadius: 6, background: "#2563EB", color: "#fff", border: "none", cursor: "pointer" }}>
               ➕ Add Row
             </button>
           </div>
 
-          {/* Audit Section */}
+          {/* Save/Load */}
+          <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+            <button onClick={saveData} style={{ padding: "8px 12px", borderRadius: 6, background: "#10B981", color: "#fff", border: "none", cursor: "pointer" }}>
+              💾 Save
+            </button>
+            <button onClick={loadData} style={{ padding: "8px 12px", borderRadius: 6, background: "#F59E0B", color: "#fff", border: "none", cursor: "pointer" }}>
+              📥 Load
+            </button>
+          </div>
+
+          {/* Audit */}
           <div style={{ marginTop: 20 }}>
-            <button
-              onClick={() => setShowAudit((s) => !s)}
-              style={{
-                padding: "8px 12px",
-                borderRadius: 6,
-                background: "#F59E0B",
-                color: "#fff",
-                border: "none",
-                cursor: "pointer",
-              }}
-            >
+            <button onClick={() => setShowAudit((s) => !s)} style={{ padding: "8px 12px", borderRadius: 6, background: "#F59E0B", color: "#fff", border: "none", cursor: "pointer" }}>
               {showAudit ? "Hide Audit" : "Show Audit"}
             </button>
-
             {showAudit && (
               <div style={{ marginTop: 12, padding: 12, border: "1px solid #D1D5DB", borderRadius: 6 }}>
                 <h2 style={{ fontSize: 16, marginBottom: 8 }}>📊 Monthly Audit Summary</h2>
