@@ -1,242 +1,338 @@
-import { useState, useEffect } from "react"
-import { supabase } from "./supabaseClient"
-import Login from "./Login"
+import React, { useState } from "react";
 
-function App() {
-  const [user, setUser] = useState(null)
-  const [products, setProducts] = useState([])
-  const [name, setName] = useState("")
-  const [price, setPrice] = useState("")
-  const [quantity, setQuantity] = useState("")
-  const [soldPriceInput, setSoldPriceInput] = useState({})
-  const [monthlyAudits, setMonthlyAudits] = useState([])
-  const [deferredPrompt, setDeferredPrompt] = useState(null)
+export default function App() {
+  const [pages, setPages] = useState([
+    { id: 1, date: "23/06/2025", rows: [] },
+    { id: 2, date: "28/09/2025", rows: [] },
+  ]);
+  const [activePageId, setActivePageId] = useState(1);
+  const [search, setSearch] = useState("");
+  const [showAudit, setShowAudit] = useState(false);
 
-  // Check session & listen for auth changes
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user || null)
-    })
+  const styles = {
+    tabBar: {
+      display: "flex",
+      flexDirection: "row",
+      gap: 8,
+      alignItems: "center",
+      paddingBottom: 8,
+      overflowX: "auto",
+      whiteSpace: "nowrap",
+    },
+    tab: (active) => ({
+      display: "inline-flex",
+      alignItems: "center",
+      gap: 8,
+      padding: "6px 10px",
+      borderRadius: 6,
+      cursor: "pointer",
+      background: active ? "#2563EB" : "#E5E7EB",
+      color: active ? "#fff" : "#111827",
+      minWidth: 100,
+      boxSizing: "border-box",
+    }),
+    tabInput: {
+      background: "transparent",
+      border: "none",
+      borderBottom: "1px solid rgba(0,0,0,0.2)",
+      outline: "none",
+      width: "100%",
+      textAlign: "center",
+      color: "inherit",
+    },
+    iconButton: {
+      background: "transparent",
+      border: "none",
+      cursor: "pointer",
+      fontSize: 16,
+      color: "inherit",
+    },
+    table: {
+      width: "100%",
+      borderCollapse: "collapse",
+      marginTop: 12,
+    },
+    th: { border: "1px solid #D1D5DB", padding: 8, background: "#F3F4F6" },
+    td: { border: "1px solid #D1D5DB", padding: 8 },
+  };
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null)
-    })
+  const addPage = () => {
+    const newId = Date.now();
+    const today = new Date().toLocaleDateString("en-GB");
+    const newPage = { id: newId, date: today, rows: [] };
+    setPages((s) => [...s, newPage]);
+    setActivePageId(newId);
+  };
 
-    return () => listener.subscription.unsubscribe()
-  }, [])
-
-  // Capture PWA install prompt event
-  useEffect(() => {
-    const handler = (e) => {
-      e.preventDefault()
-      setDeferredPrompt(e) // store event for later
-    }
-    window.addEventListener("beforeinstallprompt", handler)
-    return () => window.removeEventListener("beforeinstallprompt", handler)
-  }, [])
-
-  const handleInstallClick = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt()
-      const choiceResult = await deferredPrompt.userChoice
-      console.log("User choice:", choiceResult.outcome)
-      setDeferredPrompt(null)
-    } else {
-      alert("PWA install not available yet. Refresh page or try again later.")
-    }
-  }
-
-  // Fetch products & audits when user logs in
-  useEffect(() => {
-    if (user) {
-      fetchProducts()
-      fetchMonthlyAudits()
-    }
-  }, [user])
-
-  const fetchProducts = async () => {
-    const { data, error } = await supabase
-      .from("products")
-      .select("*")
-      .order("id", { ascending: false })
-    if (error) alert("Error fetching products: " + error.message)
-    else setProducts(data)
-  }
-
-  const fetchMonthlyAudits = async () => {
-    const { data, error } = await supabase
-      .from("monthly_audits")
-      .select("*")
-      .order("created_at", { ascending: false })
-    if (error) alert("Error fetching monthly audits: " + error.message)
-    else setMonthlyAudits(data)
-  }
-
-  const addProduct = async (e) => {
-    e.preventDefault()
-    const { error } = await supabase.from("products").insert([
-      {
-        name,
-        price: price ? Number(price) : null,
-        quantity_available: quantity ? Number(quantity) : 1,
-        sold_prices: []
+  const deletePage = (id) => {
+    setPages((prev) => {
+      const remaining = prev.filter((p) => p.id !== id);
+      if (remaining.length === 0) {
+        const freshId = Date.now();
+        const fresh = { id: freshId, date: new Date().toLocaleDateString("en-GB"), rows: [] };
+        setActivePageId(freshId);
+        return [fresh];
       }
-    ])
-    if (error) alert("Error adding product: " + error.message)
-    else {
-      setName("")
-      setPrice("")
-      setQuantity("")
-      fetchProducts()
-    }
-  }
-
-  const handleSold = async (product) => {
-    const soldPrice = Number(soldPriceInput[product.id])
-    if (!soldPrice || soldPrice <= 0) {
-      alert("Enter a valid sold price")
-      return
-    }
-    if (product.quantity_available <= 0) {
-      alert("No quantity available to sell!")
-      return
-    }
-    const newSoldPrices = product.sold_prices ? [...product.sold_prices, soldPrice] : [soldPrice]
-    const newQuantity = product.quantity_available - 1
-
-    const { error } = await supabase
-      .from("products")
-      .update({ sold_prices: newSoldPrices, quantity_available: newQuantity })
-      .eq("id", product.id)
-
-    if (error) alert("Error updating product: " + error.message)
-    else {
-      setSoldPriceInput({ ...soldPriceInput, [product.id]: "" })
-      fetchProducts()
-    }
-  }
-
-  const generateMonthlyAudit = async () => {
-    if (products.length === 0) {
-      alert("No products available to calculate audit")
-      return
-    }
-
-    const productsSummary = products.map((p) => {
-      const quantitySold = p.sold_prices ? p.sold_prices.length : 0
-      const revenue = p.sold_prices ? p.sold_prices.reduce((a, b) => a + b, 0) : 0
-      return {
-        id: p.id,
-        name: p.name,
-        original_price: p.price,
-        quantity_sold: quantitySold,
-        quantity_remaining: p.quantity_available,
-        total_revenue: revenue
+      if (activePageId === id) {
+        const idx = prev.findIndex((p) => p.id === id);
+        const next = remaining[idx - 1] || remaining[0];
+        setActivePageId(next.id);
       }
-    })
+      return remaining;
+    });
+  };
 
-    const totalRevenue = productsSummary.reduce((sum, p) => sum + p.total_revenue, 0)
-    const monthYear = new Date().toLocaleString("default", { month: "short", year: "numeric" })
+  const updatePageDate = (id, newDate) => {
+    setPages((prev) => prev.map((p) => (p.id === id ? { ...p, date: newDate } : p)));
+  };
 
-    const { error } = await supabase
-      .from("monthly_audits")
-      .insert([{ month_year: monthYear, total_revenue: totalRevenue, products_summary: productsSummary }])
+  const addRow = () => {
+    setPages((prev) =>
+      prev.map((p) =>
+        p.id === activePageId
+          ? {
+              ...p,
+              rows: [
+                ...p.rows,
+                {
+                  id: Date.now() + Math.random(),
+                  productName: "",
+                  originalPrice: "",
+                  priceSold: "",
+                  sold: false,
+                },
+              ],
+            }
+          : p
+      )
+    );
+  };
 
-    if (error) alert("Error generating audit: " + error.message)
-    else {
-      alert(`Monthly audit generated for ${monthYear} - ₦${totalRevenue}`)
-      fetchMonthlyAudits()
-    }
-  }
+  const deleteRow = (rowId) => {
+    setPages((prev) =>
+      prev.map((p) =>
+        p.id === activePageId ? { ...p, rows: p.rows.filter((r) => r.id !== rowId) } : p
+      )
+    );
+  };
 
-  if (!user) return <Login onLogin={setUser} />
+  const updateRow = (rowId, field, value) => {
+    setPages((prev) =>
+      prev.map((p) =>
+        p.id === activePageId
+          ? { ...p, rows: p.rows.map((r) => (r.id === rowId ? { ...r, [field]: value } : r)) }
+          : p
+      )
+    );
+  };
+
+  const activePage = pages.find((p) => p.id === activePageId) || null;
+
+  const filteredRows = activePage
+    ? activePage.rows.filter((r) =>
+        (r.productName || "").toString().toLowerCase().includes(search.toLowerCase())
+      )
+    : [];
+
+  // --- Audit calculations ---
+  const auditSummary = () => {
+    if (!activePage) return { soldCount: 0, notSoldCount: 0, profit: 0 };
+
+    const soldRows = activePage.rows.filter((r) => r.sold);
+    const notSoldRows = activePage.rows.filter((r) => !r.sold);
+
+    const totalSold = soldRows.reduce((sum, r) => sum + Number(r.priceSold || 0), 0);
+    const totalOriginal = soldRows.reduce((sum, r) => sum + Number(r.originalPrice || 0), 0);
+
+    return {
+      soldCount: soldRows.length,
+      notSoldCount: notSoldRows.length,
+      profit: totalSold - totalOriginal,
+    };
+  };
+
+  const { soldCount, notSoldCount, profit } = auditSummary();
 
   return (
-    <div style={{ padding: "20px" }}>
-      <h1>Welcome {user.email}</h1>
-      <button onClick={() => supabase.auth.signOut()}>Logout</button>
-      {/* Install button always visible */}
-      <button onClick={handleInstallClick} style={{ marginLeft: "10px" }}>
-        Install App
-      </button>
+    <div style={{ padding: 18, maxWidth: 1100, margin: "0 auto" }}>
+      <h1 style={{ fontSize: 20, marginBottom: 12 }}>📦 Product Spreadsheet</h1>
 
-      <hr />
-      <h2>Add Product</h2>
-      <form onSubmit={addProduct}>
-        <input
-          type="text"
-          placeholder="Product name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-        />
-        <input
-          type="number"
-          placeholder="Original price (optional)"
-          value={price}
-          onChange={(e) => setPrice(e.target.value)}
-        />
-        <input
-          type="number"
-          placeholder="Quantity available"
-          value={quantity}
-          onChange={(e) => setQuantity(e.target.value)}
-          required
-        />
-        <button type="submit">Add Product</button>
-      </form>
-
-      <hr />
-      <h2>Products</h2>
-      <ul>
-        {products.map((p) => {
-          const totalRevenue = p.sold_prices ? p.sold_prices.reduce((a, b) => a + b, 0) : 0
+      {/* Tabs */}
+      <div style={styles.tabBar}>
+        {pages.map((page) => {
+          const active = page.id === activePageId;
           return (
-            <li key={p.id} style={{ marginBottom: "15px" }}>
-              <b>{p.name}</b> - {p.price ? `₦${p.price}` : "No original price"} | Quantity Available: {p.quantity_available}
-              <br />
-              Sold Prices: {p.sold_prices && p.sold_prices.length > 0 ? p.sold_prices.join(", ") : "None"}
-              <br />
-              Total Revenue: ₦{totalRevenue}
-              <br />
+            <div
+              key={page.id}
+              style={styles.tab(active)}
+              onClick={() => setActivePageId(page.id)}
+            >
               <input
-                type="number"
-                placeholder="Enter sold price"
-                value={soldPriceInput[p.id] || ""}
-                onChange={(e) => setSoldPriceInput({ ...soldPriceInput, [p.id]: e.target.value })}
-                style={{ marginRight: "5px" }}
+                style={styles.tabInput}
+                value={page.date}
+                onChange={(e) => updatePageDate(page.id, e.target.value)}
+                onClick={(e) => e.stopPropagation()}
               />
-              <button onClick={() => handleSold(p)}>Sold</button>
-            </li>
-          )
+              <button
+                style={styles.iconButton}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deletePage(page.id);
+                }}
+              >
+                🗑️
+              </button>
+            </div>
+          );
         })}
-      </ul>
 
-      <hr />
-      <h2>Monthly Audit</h2>
-      <button onClick={generateMonthlyAudit}>Generate Monthly Audit</button>
+        <button
+          onClick={addPage}
+          style={{
+            padding: "6px 10px",
+            borderRadius: 6,
+            background: "#10B981",
+            color: "#fff",
+            border: "none",
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          ➕ New Page
+        </button>
+      </div>
 
-      <ul>
-        {monthlyAudits.map((audit) => (
-          <li key={audit.id}>
-            {audit.month_year} - Total Revenue: ₦{audit.total_revenue.toLocaleString()}
-            <br />
-            <details>
-              <summary>View Product Details</summary>
-              <ul>
-                {audit.products_summary &&
-                  audit.products_summary.map((prod) => (
-                    <li key={prod.id}>
-                      {prod.name} - Sold: {prod.quantity_sold}, Remaining: {prod.quantity_remaining}, Revenue: ₦{prod.total_revenue}
-                    </li>
-                  ))}
-              </ul>
-            </details>
-          </li>
-        ))}
-      </ul>
+      {/* Search */}
+      <div style={{ marginBottom: 12 }}>
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="🔍 Search product..."
+          style={{ width: "100%", padding: 8, borderRadius: 6, border: "1px solid #D1D5DB" }}
+        />
+      </div>
+
+      {/* Table */}
+      {activePage ? (
+        <>
+          <table style={styles.table}>
+            <thead>
+              <tr>
+                <th style={styles.th}>S/N</th>
+                <th style={styles.th}>Product Name</th>
+                <th style={styles.th}>Original Price</th>
+                <th style={styles.th}>Price Sold</th>
+                <th style={styles.th}>Sold</th>
+                <th style={styles.th}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredRows.length === 0 ? (
+                <tr>
+                  <td style={styles.td} colSpan={6}>
+                    No rows — click "➕ Add Row"
+                  </td>
+                </tr>
+              ) : (
+                filteredRows.map((row, idx) => (
+                  <tr key={row.id}>
+                    <td style={styles.td}>{idx + 1}</td>
+                    <td style={styles.td}>
+                      <input
+                        value={row.productName}
+                        onChange={(e) => updateRow(row.id, "productName", e.target.value)}
+                        style={{ width: "100%", border: "none", outline: "none" }}
+                      />
+                    </td>
+                    <td style={styles.td}>
+                      <input
+                        type="number"
+                        value={row.originalPrice}
+                        onChange={(e) => updateRow(row.id, "originalPrice", e.target.value)}
+                        style={{ width: "100%", border: "none", outline: "none" }}
+                      />
+                    </td>
+                    <td style={styles.td}>
+                      <input
+                        type="number"
+                        value={row.priceSold}
+                        onChange={(e) => updateRow(row.id, "priceSold", e.target.value)}
+                        style={{ width: "100%", border: "none", outline: "none" }}
+                      />
+                    </td>
+                    <td style={{ ...styles.td, textAlign: "center" }}>
+                      <input
+                        type="checkbox"
+                        checked={row.sold}
+                        onChange={(e) => updateRow(row.id, "sold", e.target.checked)}
+                      />
+                    </td>
+                    <td style={{ ...styles.td, textAlign: "center" }}>
+                      <button
+                        onClick={() => deleteRow(row.id)}
+                        style={{
+                          cursor: "pointer",
+                          color: "#DC2626",
+                          background: "transparent",
+                          border: "none",
+                          fontSize: 16,
+                        }}
+                      >
+                        🗑️
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+
+          {/* Add Row */}
+          <div style={{ marginTop: 12 }}>
+            <button
+              onClick={addRow}
+              style={{
+                padding: "8px 12px",
+                borderRadius: 6,
+                background: "#2563EB",
+                color: "#fff",
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              ➕ Add Row
+            </button>
+          </div>
+
+          {/* Audit Section */}
+          <div style={{ marginTop: 20 }}>
+            <button
+              onClick={() => setShowAudit((s) => !s)}
+              style={{
+                padding: "8px 12px",
+                borderRadius: 6,
+                background: "#F59E0B",
+                color: "#fff",
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              {showAudit ? "Hide Audit" : "Show Audit"}
+            </button>
+
+            {showAudit && (
+              <div style={{ marginTop: 12, padding: 12, border: "1px solid #D1D5DB", borderRadius: 6 }}>
+                <h2 style={{ fontSize: 16, marginBottom: 8 }}>📊 Monthly Audit Summary</h2>
+                <p>✅ Sold Items: {soldCount}</p>
+                <p>❌ Not Sold Items: {notSoldCount}</p>
+                <p>💰 Profit/Loss: {profit}</p>
+              </div>
+            )}
+          </div>
+        </>
+      ) : (
+        <div>No page selected</div>
+      )}
     </div>
-  )
+  );
 }
-
-export default App
