@@ -132,16 +132,13 @@ export default function App() {
   const savePage = async () => {
     if (!activePage) return;
     try {
-      // Ensure page exists
       const { error: pageError } = await supabase
         .from("pages")
         .upsert([{ id: activePage.id, date: activePage.date }]);
       if (pageError) throw pageError;
 
-      // Delete old rows
       await supabase.from("products").delete().eq("page_id", activePage.id);
 
-      // Insert new rows
       const { error } = await supabase.from("products").insert(
         activePage.rows.map((r) => ({
           page_id: activePage.id,
@@ -154,7 +151,7 @@ export default function App() {
       if (error) throw error;
 
       alert("✅ Page saved successfully!");
-      loadAllPages(); // Refresh state from Supabase
+      loadAllPages();
     } catch (err) {
       console.error(err);
       alert("❌ Error saving products!");
@@ -179,6 +176,7 @@ export default function App() {
     <div style={{ padding: 18, maxWidth: 1100, margin: "0 auto" }}>
       <h1 style={{ fontSize: 28, fontWeight: "bold", marginBottom: 12 }}>🏢 Noble Ventures</h1>
 
+      {/* Pages Tabs with mobile-friendly layout */}
       <div style={{ display: "flex", gap: 12, paddingBottom: 12, overflowX: "auto", whiteSpace: "nowrap" }}>
         {pages.map((page) => {
           const active = page.id === activePageId;
@@ -187,52 +185,66 @@ export default function App() {
               key={page.id}
               style={{
                 display: "flex",
+                flexDirection: "column", // Date above clickable area
                 alignItems: "center",
-                padding: "6px 12px",
                 borderRadius: 8,
                 cursor: "pointer",
-                background: active ? "#2563EB" : "#E5E7EB",
-                color: active ? "#fff" : "#111827",
                 minWidth: 130,
-                gap: 8,
                 flexShrink: 0,
+                gap: 4,
               }}
             >
-              <div style={{ flex: 1 }} onClick={() => setActivePageId(page.id)}>
-                <input
-                  style={{
-                    width: "100%",
-                    border: "none",
-                    borderBottom: "1px solid rgba(0,0,0,0.2)",
-                    outline: "none",
-                    background: "transparent",
-                    color: "inherit",
-                    padding: 2,
-                    fontSize: 14,
-                    cursor: "text",
-                  }}
-                  value={page.date}
-                  onChange={(e) => updatePageDate(page.id, e.target.value)}
-                  onClick={(e) => e.stopPropagation()}
-                />
-              </div>
-
-              <button
+              {/* Date input */}
+              <input
                 style={{
-                  background: "transparent",
+                  width: "100%",
                   border: "none",
-                  color: "#DC2626",
-                  cursor: "pointer",
-                  fontSize: 16,
-                  padding: 4,
+                  borderBottom: "1px solid rgba(0,0,0,0.2)",
+                  outline: "none",
+                  background: "transparent",
+                  color: "#111827",
+                  padding: 2,
+                  fontSize: 14,
+                  textAlign: "center",
+                  cursor: "text",
                 }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  deletePage(page.id);
+                value={page.date}
+                onChange={(e) => updatePageDate(page.id, e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+              />
+
+              {/* Clickable page area */}
+              <div
+                onClick={() => setActivePageId(page.id)}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "6px 12px",
+                  borderRadius: 8,
+                  background: active ? "#2563EB" : "#E5E7EB",
+                  color: active ? "#fff" : "#111827",
                 }}
               >
-                🗑️
-              </button>
+                <div style={{ flex: 1, textAlign: "center", fontSize: 14 }}></div>
+                <button
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "#DC2626",
+                    cursor: "pointer",
+                    fontSize: 16,
+                    padding: 4,
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deletePage(page.id);
+                  }}
+                >
+                  🗑️
+                </button>
+              </div>
             </div>
           );
         })}
