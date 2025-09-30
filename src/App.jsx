@@ -12,17 +12,12 @@ export default function App() {
   const [isInstalled, setIsInstalled] = useState(false);
 
   const styles = {
-    table: {
-      width: "100%",
-      borderCollapse: "collapse",
-      marginTop: 8,
-      fontSize: "14px",
-    },
-    th: { border: "1px solid #D1D5DB", padding: 6, background: "#F3F4F6" },
-    td: { border: "1px solid #D1D5DB", padding: 6 },
+    table: { width: "100%", borderCollapse: "collapse", marginTop: 12 },
+    th: { border: "1px solid #D1D5DB", padding: 8, background: "#F3F4F6", fontSize: 14 },
+    td: { border: "1px solid #D1D5DB", padding: 8, fontSize: 14 },
   };
 
-  // 👉 Load all pages and rows
+  // Load all pages and their rows from Supabase
   const loadAllPages = async () => {
     try {
       const { data: pagesData, error } = await supabase.from("pages").select("*");
@@ -58,7 +53,6 @@ export default function App() {
     loadAllPages();
   }, []);
 
-  // 👉 Add page
   const addPage = () => {
     const newId = Date.now().toString();
     const today = new Date().toLocaleDateString("en-GB");
@@ -67,7 +61,6 @@ export default function App() {
     setActivePageId(newId);
   };
 
-  // 👉 Delete page
   const deletePage = (id) => {
     if (!window.confirm("Are you sure you want to delete this page?")) return;
 
@@ -87,12 +80,10 @@ export default function App() {
     });
   };
 
-  // 👉 Update page date
   const updatePageDate = (id, newDate) => {
     setPages((prev) => prev.map((p) => (p.id === id ? { ...p, date: newDate } : p)));
   };
 
-  // 👉 Add row
   const addRow = () => {
     setPages((prev) =>
       prev.map((p) =>
@@ -112,17 +103,18 @@ export default function App() {
     );
   };
 
-  // 👉 Delete row
   const deleteRow = (rowId) => {
     if (!window.confirm("Are you sure you want to delete this row?")) return;
+
     setPages((prev) =>
       prev.map((p) =>
-        p.id === activePageId ? { ...p, rows: p.rows.filter((r) => r.id !== rowId) } : p
+        p.id === activePageId
+          ? { ...p, rows: p.rows.filter((r) => r.id !== rowId) }
+          : p
       )
     );
   };
 
-  // 👉 Update row
   const updateRow = (rowId, field, value) => {
     setPages((prev) =>
       prev.map((p) =>
@@ -144,7 +136,6 @@ export default function App() {
     ? activePage.rows.filter((r) => (r.product_name || "").toLowerCase().includes(search.toLowerCase()))
     : [];
 
-  // 👉 Audit summary
   const auditSummary = () => {
     if (!activePage) return { soldCount: 0, notSoldCount: 0, profit: 0 };
     const soldRows = activePage.rows.filter((r) => r.sold);
@@ -156,7 +147,6 @@ export default function App() {
 
   const { soldCount, notSoldCount, profit } = auditSummary();
 
-  // 👉 Save page
   const savePage = async () => {
     if (!activePage) return;
     try {
@@ -186,7 +176,6 @@ export default function App() {
     }
   };
 
-  // 👉 Load page
   const loadPage = async () => {
     if (!activePage) return;
     try {
@@ -210,7 +199,7 @@ export default function App() {
     }
   };
 
-  // 👉 Handle PWA install
+  // 👉 Handle PWA install prompt
   useEffect(() => {
     const beforeInstallHandler = (e) => {
       e.preventDefault();
@@ -238,20 +227,11 @@ export default function App() {
   };
 
   return (
-    <div
-      style={{
-        padding: 10,
-        maxWidth: 1100,
-        margin: "0 auto",
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <h1 style={{ fontSize: 22, fontWeight: "bold", marginBottom: 8 }}>🏢 Noble Ventures</h1>
+    <div style={{ padding: "12px", maxWidth: 1100, width: "100%", margin: "0 auto" }}>
+      <h1 style={{ fontSize: 28, fontWeight: "bold", marginBottom: 12 }}>🏢 Noble Ventures</h1>
 
-      {/* Tabs */}
-      <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 6 }}>
+      {/* Tabs sorted alphabetically */}
+      <div style={{ display: "flex", gap: 12, paddingBottom: 12, overflowX: "auto", whiteSpace: "nowrap" }}>
         {pages
           .slice()
           .sort((a, b) => (a.title || "").localeCompare(b.title || ""))
@@ -264,24 +244,27 @@ export default function App() {
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
-                  minWidth: 100,
-                  flexShrink: 0,
-                  gap: 2,
+                  borderRadius: 8,
                   cursor: "pointer",
+                  minWidth: 130,
+                  flexShrink: 0,
+                  gap: 4,
                 }}
               >
                 <input
-                  value={page.date}
-                  onChange={(e) => updatePageDate(page.id, e.target.value)}
                   style={{
                     width: "100%",
                     border: "none",
                     borderBottom: "1px solid rgba(0,0,0,0.2)",
                     outline: "none",
                     background: "transparent",
+                    color: "#111827",
+                    padding: 2,
+                    fontSize: 14,
                     textAlign: "center",
-                    fontSize: 12,
                   }}
+                  value={page.date}
+                  onChange={(e) => updatePageDate(page.id, e.target.value)}
                   onClick={(e) => e.stopPropagation()}
                 />
                 <div
@@ -291,8 +274,8 @@ export default function App() {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
-                    padding: "2px 4px",
-                    borderRadius: 6,
+                    padding: "6px 12px",
+                    borderRadius: 8,
                     background: active ? "#2563EB" : "#E5E7EB",
                     color: active ? "#fff" : "#111827",
                   }}
@@ -307,7 +290,7 @@ export default function App() {
                     style={{
                       flex: 1,
                       textAlign: "center",
-                      fontSize: 12,
+                      fontSize: 14,
                       border: "none",
                       background: "transparent",
                       outline: "none",
@@ -315,17 +298,17 @@ export default function App() {
                     }}
                   />
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deletePage(page.id);
-                    }}
                     style={{
                       background: "transparent",
                       border: "none",
                       color: "#DC2626",
                       cursor: "pointer",
-                      fontSize: 14,
-                      padding: 0,
+                      fontSize: 16,
+                      padding: 4,
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deletePage(page.id);
                     }}
                   >
                     🗑️
@@ -337,166 +320,155 @@ export default function App() {
         <button
           onClick={addPage}
           style={{
-            padding: "4px 8px",
-            borderRadius: 6,
+            padding: "6px 12px",
+            borderRadius: 8,
             background: "#10B981",
             color: "#fff",
             border: "none",
             cursor: "pointer",
             flexShrink: 0,
-            fontSize: 14,
           }}
         >
-          ➕
+          ➕ New Page
         </button>
       </div>
 
-      {/* Search */}
-      <input
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder="🔍 Search product..."
-        style={{
-          width: "100%",
-          padding: 6,
-          borderRadius: 6,
-          border: "1px solid #D1D5DB",
-          fontSize: 14,
-          marginBottom: 6,
-        }}
-      />
+      <div style={{ marginBottom: 12 }}>
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="🔍 Search product..."
+          style={{ width: "100%", padding: 8, borderRadius: 6, border: "1px solid #D1D5DB", fontSize: 14 }}
+        />
+      </div>
 
-      {/* Table */}
       {activePage && (
-        <div style={{ flex: 1, overflowY: "auto", overflowX: "auto" }}>
-          <table style={styles.table}>
-            <thead>
-              <tr>
-                <th style={styles.th}>S/N</th>
-                <th style={styles.th}>Product Name</th>
-                <th style={styles.th}>Original Price</th>
-                <th style={styles.th}>Price Sold</th>
-                <th style={styles.th}>Sold</th>
-                <th style={styles.th}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredRows.length === 0 ? (
+        <>
+          {/* Wrap table in horizontal scroll div for safety */}
+          <div style={{ overflowX: "auto" }}>
+            <table style={styles.table}>
+              <thead>
                 <tr>
-                  <td style={styles.td} colSpan={6}>
-                    No rows — click "➕ Add Row"
-                  </td>
+                  <th style={styles.th}>S/N</th>
+                  <th style={styles.th}>Product Name</th>
+                  <th style={styles.th}>Original Price</th>
+                  <th style={styles.th}>Price Sold</th>
+                  <th style={styles.th}>Sold</th>
+                  <th style={styles.th}>Action</th>
                 </tr>
-              ) : (
-                filteredRows.map((row, idx) => (
-                  <tr key={row.id}>
-                    <td style={styles.td}>{idx + 1}</td>
-                    <td style={styles.td}>
-                      <input
-                        value={row.product_name}
-                        onChange={(e) => updateRow(row.id, "product_name", e.target.value)}
-                        style={{ width: "100%", border: "none", outline: "none" }}
-                      />
-                    </td>
-                    <td style={styles.td}>
-                      <input
-                        type="number"
-                        value={row.original_price}
-                        onChange={(e) => updateRow(row.id, "original_price", e.target.value)}
-                        style={{ width: "100%", border: "none", outline: "none" }}
-                      />
-                    </td>
-                    <td style={styles.td}>
-                      <input
-                        type="number"
-                        value={row.price_sold}
-                        onChange={(e) => updateRow(row.id, "price_sold", e.target.value)}
-                        style={{ width: "100%", border: "none", outline: "none" }}
-                      />
-                    </td>
-                    <td style={{ ...styles.td, textAlign: "center" }}>
-                      <input
-                        type="checkbox"
-                        checked={row.sold}
-                        onChange={(e) => updateRow(row.id, "sold", e.target.checked)}
-                      />
-                    </td>
-                    <td style={{ ...styles.td, textAlign: "center" }}>
-                      <button
-                        onClick={() => deleteRow(row.id)}
-                        style={{ cursor: "pointer", color: "#DC2626", background: "transparent", border: "none", fontSize: 14 }}
-                      >
-                        🗑️
-                      </button>
-                    </td>
+              </thead>
+              <tbody>
+                {filteredRows.length === 0 ? (
+                  <tr>
+                    <td style={styles.td} colSpan={6}>No rows — click "➕ Add Row"</td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+                ) : (
+                  filteredRows.map((row, idx) => (
+                    <tr key={row.id}>
+                      <td style={styles.td}>{idx + 1}</td>
+                      <td style={styles.td}>
+                        <input
+                          value={row.product_name}
+                          onChange={(e) => updateRow(row.id, "product_name", e.target.value)}
+                          style={{ width: "100%", border: "none", outline: "none", fontSize: 14 }}
+                        />
+                      </td>
+                      <td style={styles.td}>
+                        <input
+                          type="number"
+                          value={row.original_price}
+                          onChange={(e) => updateRow(row.id, "original_price", e.target.value)}
+                          style={{ width: "100%", border: "none", outline: "none", fontSize: 14 }}
+                        />
+                      </td>
+                      <td style={styles.td}>
+                        <input
+                          type="number"
+                          value={row.price_sold}
+                          onChange={(e) => updateRow(row.id, "price_sold", e.target.value)}
+                          style={{ width: "100%", border: "none", outline: "none", fontSize: 14 }}
+                        />
+                      </td>
+                      <td style={{ ...styles.td, textAlign: "center" }}>
+                        <input
+                          type="checkbox"
+                          checked={row.sold}
+                          onChange={(e) => updateRow(row.id, "sold", e.target.checked)}
+                        />
+                      </td>
+                      <td style={{ ...styles.td, textAlign: "center" }}>
+                        <button
+                          onClick={() => deleteRow(row.id)}
+                          style={{
+                            cursor: "pointer",
+                            color: "#DC2626",
+                            background: "transparent",
+                            border: "none",
+                            fontSize: 16,
+                          }}
+                        >
+                          🗑️
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
-      {/* Row buttons */}
-      <div style={{ marginTop: 6 }}>
-        <button
-          onClick={addRow}
-          style={{ padding: "6px 10px", borderRadius: 6, background: "#2563EB", color: "#fff", border: "none", cursor: "pointer" }}
-        >
-          ➕ Add Row
-        </button>
-      </div>
-
-      {/* Save/Load */}
-      <div style={{ marginTop: 6, display: "flex", gap: 6, flexWrap: "wrap" }}>
-        <button
-          onClick={savePage}
-          style={{ padding: "6px 10px", borderRadius: 6, background: "#2563EB", color: "#fff", border: "none", cursor: "pointer" }}
-        >
-          💾 Save
-        </button>
-        <button
-          onClick={loadPage}
-          style={{ padding: "6px 10px", borderRadius: 6, background: "#F59E0B", color: "#fff", border: "none", cursor: "pointer" }}
-        >
-          📥 Load
-        </button>
-      </div>
-
-      {/* Audit */}
-      {activePage && (
-        <div style={{ marginTop: 8 }}>
-          <button
-            onClick={() => setShowAudit((s) => !s)}
-            style={{ padding: "6px 10px", borderRadius: 6, background: "#F59E0B", color: "#fff", border: "none", cursor: "pointer" }}
-          >
-            {showAudit ? "Hide Audit" : "Show Audit"}
-          </button>
+          <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button
+              onClick={addRow}
+              style={{ padding: "8px 12px", borderRadius: 6, background: "#2563EB", color: "#fff", border: "none", cursor: "pointer" }}
+            >
+              ➕ Add Row
+            </button>
+            <button
+              onClick={savePage}
+              style={{ padding: "8px 12px", borderRadius: 6, background: "#2563EB", color: "#fff", border: "none", cursor: "pointer" }}
+            >
+              💾 Save
+            </button>
+            <button
+              onClick={loadPage}
+              style={{ padding: "8px 12px", borderRadius: 6, background: "#F59E0B", color: "#fff", border: "none", cursor: "pointer" }}
+            >
+              📥 Load
+            </button>
+            <button
+              onClick={() => setShowAudit((s) => !s)}
+              style={{ padding: "8px 12px", borderRadius: 6, background: "#F59E0B", color: "#fff", border: "none", cursor: "pointer" }}
+            >
+              {showAudit ? "Hide Audit" : "Show Audit"}
+            </button>
+          </div>
 
           {showAudit && (
-            <div style={{ marginTop: 6, padding: 8, border: "1px solid #D1D5DB", borderRadius: 6 }}>
-              <h2 style={{ fontSize: 14, marginBottom: 4 }}>📊 Monthly Audit Summary</h2>
+            <div style={{ marginTop: 12, padding: 12, border: "1px solid #D1D5DB", borderRadius: 6 }}>
+              <h2 style={{ fontSize: 16, marginBottom: 8 }}>📊 Monthly Audit Summary</h2>
               <p>✅ Sold Items: {soldCount}</p>
               <p>❌ Not Sold Items: {notSoldCount}</p>
               <p>💰 Profit/Loss: {profit}</p>
             </div>
           )}
-        </div>
+        </>
       )}
 
-      {/* Floating Install Button */}
+      {/* 📲 Floating Install Button */}
       {!isInstalled && deferredPrompt && (
         <button
           onClick={installApp}
+          className="fixed-install-btn"
           style={{
             position: "fixed",
-            bottom: 16,
-            right: 16,
+            bottom: 20,
+            right: 20,
             padding: "12px 16px",
             borderRadius: "50%",
             background: "#2563EB",
             color: "#fff",
-            fontSize: 18,
+            fontSize: 20,
             border: "none",
             cursor: "pointer",
             boxShadow: "0px 4px 6px rgba(0,0,0,0.2)",
