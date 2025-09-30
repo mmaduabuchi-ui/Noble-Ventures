@@ -15,14 +15,14 @@ export default function App() {
     table: {
       width: "100%",
       borderCollapse: "collapse",
-      marginTop: 12,
-      fontSize: "14px", // ✅ Mobile-friendly text
+      marginTop: 8,
+      fontSize: "14px",
     },
     th: { border: "1px solid #D1D5DB", padding: 6, background: "#F3F4F6" },
     td: { border: "1px solid #D1D5DB", padding: 6 },
   };
 
-  // 👉 Load all pages and their rows
+  // 👉 Load all pages and rows
   const loadAllPages = async () => {
     try {
       const { data: pagesData, error } = await supabase.from("pages").select("*");
@@ -238,19 +238,20 @@ export default function App() {
   };
 
   return (
-    <div style={{ padding: 12, maxWidth: 1100, margin: "0 auto" }}>
-      <h1 style={{ fontSize: 22, fontWeight: "bold", marginBottom: 10 }}>🏢 Noble Ventures</h1>
+    <div
+      style={{
+        padding: 10,
+        maxWidth: 1100,
+        margin: "0 auto",
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <h1 style={{ fontSize: 22, fontWeight: "bold", marginBottom: 8 }}>🏢 Noble Ventures</h1>
 
-      {/* 👉 Tabs responsive scroll */}
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          paddingBottom: 10,
-          overflowX: "auto",
-          whiteSpace: "nowrap",
-        }}
-      >
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 6 }}>
         {pages
           .slice()
           .sort((a, b) => (a.title || "").localeCompare(b.title || ""))
@@ -263,27 +264,24 @@ export default function App() {
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                  minWidth: 110,
+                  minWidth: 100,
                   flexShrink: 0,
-                  gap: 4,
+                  gap: 2,
+                  cursor: "pointer",
                 }}
               >
                 <input
+                  value={page.date}
+                  onChange={(e) => updatePageDate(page.id, e.target.value)}
                   style={{
                     width: "100%",
                     border: "none",
                     borderBottom: "1px solid rgba(0,0,0,0.2)",
                     outline: "none",
                     background: "transparent",
-                    color: "#111827",
-                    padding: 2,
-                    fontSize: 12,
                     textAlign: "center",
+                    fontSize: 12,
                   }}
-                  value={page.date}
-                  onChange={(e) => updatePageDate(page.id, e.target.value)}
                   onClick={(e) => e.stopPropagation()}
                 />
                 <div
@@ -293,7 +291,7 @@ export default function App() {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
-                    padding: "4px 8px",
+                    padding: "2px 4px",
                     borderRadius: 6,
                     background: active ? "#2563EB" : "#E5E7EB",
                     color: active ? "#fff" : "#111827",
@@ -317,17 +315,17 @@ export default function App() {
                     }}
                   />
                   <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deletePage(page.id);
+                    }}
                     style={{
                       background: "transparent",
                       border: "none",
                       color: "#DC2626",
                       cursor: "pointer",
                       fontSize: 14,
-                      padding: 2,
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deletePage(page.id);
+                      padding: 0,
                     }}
                   >
                     🗑️
@@ -353,149 +351,143 @@ export default function App() {
         </button>
       </div>
 
-      {/* 👉 Search */}
-      <div style={{ marginBottom: 10 }}>
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="🔍 Search product..."
-          style={{
-            width: "100%",
-            padding: 6,
-            borderRadius: 6,
-            border: "1px solid #D1D5DB",
-            fontSize: 14,
-          }}
-        />
-      </div>
+      {/* Search */}
+      <input
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="🔍 Search product..."
+        style={{
+          width: "100%",
+          padding: 6,
+          borderRadius: 6,
+          border: "1px solid #D1D5DB",
+          fontSize: 14,
+          marginBottom: 6,
+        }}
+      />
 
-      {/* 👉 Table */}
+      {/* Table */}
       {activePage && (
-        <>
-          <div style={{ overflowX: "auto" }}>
-            <table style={styles.table}>
-              <thead>
+        <div style={{ flex: 1, overflowY: "auto", overflowX: "auto" }}>
+          <table style={styles.table}>
+            <thead>
+              <tr>
+                <th style={styles.th}>S/N</th>
+                <th style={styles.th}>Product Name</th>
+                <th style={styles.th}>Original Price</th>
+                <th style={styles.th}>Price Sold</th>
+                <th style={styles.th}>Sold</th>
+                <th style={styles.th}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredRows.length === 0 ? (
                 <tr>
-                  <th style={styles.th}>S/N</th>
-                  <th style={styles.th}>Product Name</th>
-                  <th style={styles.th}>Original Price</th>
-                  <th style={styles.th}>Price Sold</th>
-                  <th style={styles.th}>Sold</th>
-                  <th style={styles.th}>Action</th>
+                  <td style={styles.td} colSpan={6}>
+                    No rows — click "➕ Add Row"
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {filteredRows.length === 0 ? (
-                  <tr>
-                    <td style={styles.td} colSpan={6}>No rows — click "➕ Add Row"</td>
+              ) : (
+                filteredRows.map((row, idx) => (
+                  <tr key={row.id}>
+                    <td style={styles.td}>{idx + 1}</td>
+                    <td style={styles.td}>
+                      <input
+                        value={row.product_name}
+                        onChange={(e) => updateRow(row.id, "product_name", e.target.value)}
+                        style={{ width: "100%", border: "none", outline: "none" }}
+                      />
+                    </td>
+                    <td style={styles.td}>
+                      <input
+                        type="number"
+                        value={row.original_price}
+                        onChange={(e) => updateRow(row.id, "original_price", e.target.value)}
+                        style={{ width: "100%", border: "none", outline: "none" }}
+                      />
+                    </td>
+                    <td style={styles.td}>
+                      <input
+                        type="number"
+                        value={row.price_sold}
+                        onChange={(e) => updateRow(row.id, "price_sold", e.target.value)}
+                        style={{ width: "100%", border: "none", outline: "none" }}
+                      />
+                    </td>
+                    <td style={{ ...styles.td, textAlign: "center" }}>
+                      <input
+                        type="checkbox"
+                        checked={row.sold}
+                        onChange={(e) => updateRow(row.id, "sold", e.target.checked)}
+                      />
+                    </td>
+                    <td style={{ ...styles.td, textAlign: "center" }}>
+                      <button
+                        onClick={() => deleteRow(row.id)}
+                        style={{ cursor: "pointer", color: "#DC2626", background: "transparent", border: "none", fontSize: 14 }}
+                      >
+                        🗑️
+                      </button>
+                    </td>
                   </tr>
-                ) : (
-                  filteredRows.map((row, idx) => (
-                    <tr key={row.id}>
-                      <td style={styles.td}>{idx + 1}</td>
-                      <td style={styles.td}>
-                        <input
-                          value={row.product_name}
-                          onChange={(e) => updateRow(row.id, "product_name", e.target.value)}
-                          style={{ width: "100%", border: "none", outline: "none" }}
-                        />
-                      </td>
-                      <td style={styles.td}>
-                        <input
-                          type="number"
-                          value={row.original_price}
-                          onChange={(e) => updateRow(row.id, "original_price", e.target.value)}
-                          style={{ width: "100%", border: "none", outline: "none" }}
-                        />
-                      </td>
-                      <td style={styles.td}>
-                        <input
-                          type="number"
-                          value={row.price_sold}
-                          onChange={(e) => updateRow(row.id, "price_sold", e.target.value)}
-                          style={{ width: "100%", border: "none", outline: "none" }}
-                        />
-                      </td>
-                      <td style={{ ...styles.td, textAlign: "center" }}>
-                        <input
-                          type="checkbox"
-                          checked={row.sold}
-                          onChange={(e) => updateRow(row.id, "sold", e.target.checked)}
-                        />
-                      </td>
-                      <td style={{ ...styles.td, textAlign: "center" }}>
-                        <button
-                          onClick={() => deleteRow(row.id)}
-                          style={{
-                            cursor: "pointer",
-                            color: "#DC2626",
-                            background: "transparent",
-                            border: "none",
-                            fontSize: 14,
-                          }}
-                        >
-                          🗑️
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* 👉 Row buttons */}
-          <div style={{ marginTop: 10 }}>
-            <button
-              onClick={addRow}
-              style={{ padding: "6px 10px", borderRadius: 6, background: "#2563EB", color: "#fff", border: "none", cursor: "pointer" }}
-            >
-              ➕ Add Row
-            </button>
-          </div>
-
-          {/* 👉 Save/Load */}
-          <div style={{ marginTop: 10, display: "flex", gap: 6 }}>
-            <button
-              onClick={savePage}
-              style={{ padding: "6px 10px", borderRadius: 6, background: "#2563EB", color: "#fff", border: "none", cursor: "pointer" }}
-            >
-              💾 Save
-            </button>
-            <button
-              onClick={loadPage}
-              style={{ padding: "6px 10px", borderRadius: 6, background: "#F59E0B", color: "#fff", border: "none", cursor: "pointer" }}
-            >
-              📥 Load
-            </button>
-          </div>
-
-          {/* 👉 Audit */}
-          <div style={{ marginTop: 16 }}>
-            <button
-              onClick={() => setShowAudit((s) => !s)}
-              style={{ padding: "6px 10px", borderRadius: 6, background: "#F59E0B", color: "#fff", border: "none", cursor: "pointer" }}
-            >
-              {showAudit ? "Hide Audit" : "Show Audit"}
-            </button>
-
-            {showAudit && (
-              <div style={{ marginTop: 10, padding: 10, border: "1px solid #D1D5DB", borderRadius: 6 }}>
-                <h2 style={{ fontSize: 14, marginBottom: 6 }}>📊 Monthly Audit Summary</h2>
-                <p>✅ Sold Items: {soldCount}</p>
-                <p>❌ Not Sold Items: {notSoldCount}</p>
-                <p>💰 Profit/Loss: {profit}</p>
-              </div>
-            )}
-          </div>
-        </>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       )}
 
-      {/* 👉 Floating Install Button */}
+      {/* Row buttons */}
+      <div style={{ marginTop: 6 }}>
+        <button
+          onClick={addRow}
+          style={{ padding: "6px 10px", borderRadius: 6, background: "#2563EB", color: "#fff", border: "none", cursor: "pointer" }}
+        >
+          ➕ Add Row
+        </button>
+      </div>
+
+      {/* Save/Load */}
+      <div style={{ marginTop: 6, display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <button
+          onClick={savePage}
+          style={{ padding: "6px 10px", borderRadius: 6, background: "#2563EB", color: "#fff", border: "none", cursor: "pointer" }}
+        >
+          💾 Save
+        </button>
+        <button
+          onClick={loadPage}
+          style={{ padding: "6px 10px", borderRadius: 6, background: "#F59E0B", color: "#fff", border: "none", cursor: "pointer" }}
+        >
+          📥 Load
+        </button>
+      </div>
+
+      {/* Audit */}
+      {activePage && (
+        <div style={{ marginTop: 8 }}>
+          <button
+            onClick={() => setShowAudit((s) => !s)}
+            style={{ padding: "6px 10px", borderRadius: 6, background: "#F59E0B", color: "#fff", border: "none", cursor: "pointer" }}
+          >
+            {showAudit ? "Hide Audit" : "Show Audit"}
+          </button>
+
+          {showAudit && (
+            <div style={{ marginTop: 6, padding: 8, border: "1px solid #D1D5DB", borderRadius: 6 }}>
+              <h2 style={{ fontSize: 14, marginBottom: 4 }}>📊 Monthly Audit Summary</h2>
+              <p>✅ Sold Items: {soldCount}</p>
+              <p>❌ Not Sold Items: {notSoldCount}</p>
+              <p>💰 Profit/Loss: {profit}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Floating Install Button */}
       {!isInstalled && deferredPrompt && (
         <button
           onClick={installApp}
-          className="fixed-install-btn"
           style={{
             position: "fixed",
             bottom: 16,
