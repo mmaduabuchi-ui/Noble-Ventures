@@ -11,7 +11,7 @@ export default function App() {
 
   const styles = {
     tableContainer: {
-      maxHeight: "50vh",
+      maxHeight: "60vh",
       overflowY: "auto",
       marginBottom: 12,
       border: "1px solid #D1D5DB",
@@ -42,14 +42,16 @@ export default function App() {
             .from("products")
             .select("*")
             .eq("page_id", p.id);
+
           const sortedRows = (rowsData || []).sort((a, b) =>
-            (a.product_name || "").localeCompare(b.product_name || "")
+            (a.serial_number || "").toString().localeCompare((b.serial_number || "").toString())
           );
+
           return {
             ...p,
             rows: sortedRows.map((r) => ({
               ...r,
-              client_id: Date.now() + Math.random(), // unique per render
+              client_id: Date.now() + Math.random(),
             })),
           };
         })
@@ -132,6 +134,7 @@ export default function App() {
                 ...p.rows,
                 {
                   client_id: Date.now() + Math.random(),
+                  serial_number: "", // ✅ Manual entry, not auto
                   product_name: "",
                   original_price: "",
                   price_sold: "",
@@ -201,10 +204,11 @@ export default function App() {
 
   const { soldCount, notSoldCount, profit } = auditSummary();
 
-  // Save page
+  // ✅ Save page
   const savePage = async () => {
     if (!activePage) return;
     try {
+      // Save page
       const { error: pageError } = await supabase.from("pages").upsert([
         {
           id: activePage.id,
@@ -214,22 +218,27 @@ export default function App() {
       ]);
       if (pageError) throw pageError;
 
+      // Remove old rows
       await supabase.from("products").delete().eq("page_id", activePage.id);
+
+      // Insert new rows
       const { error } = await supabase.from("products").insert(
         activePage.rows.map((r) => ({
           page_id: activePage.id,
+          serial_number: r.serial_number ? Number(r.serial_number) : null,
           product_name: r.product_name || "",
-          original_price: Number(r.original_price) || 0,
-          price_sold: Number(r.price_sold) || 0,
+          original_price: r.original_price ? Number(r.original_price) : 0,
+          price_sold: r.price_sold ? Number(r.price_sold) : 0,
           sold: Boolean(r.sold),
         }))
       );
       if (error) throw error;
+
       alert("✅ Page saved successfully!");
       loadAllPages();
     } catch (err) {
-      console.error(err);
-      alert("❌ Error saving products!");
+      console.error("❌ Save error:", err);
+      alert("❌ Error saving products! Check console for details.");
     }
   };
 
@@ -243,7 +252,7 @@ export default function App() {
         .eq("page_id", activePage.id);
       if (error) throw error;
       const sortedData = (data || []).sort((a, b) =>
-        (a.product_name || "").localeCompare(b.product_name || "")
+        (a.serial_number || "").toString().localeCompare((b.serial_number || "").toString())
       );
       setPages((prev) =>
         prev.map((p) =>
@@ -433,9 +442,23 @@ export default function App() {
                     </td>
                   </tr>
                 ) : (
-                  filteredRows.map((row, idx) => (
+                  filteredRows.map((row) => (
                     <tr key={row.client_id}>
-                      <td style={styles.td}>{idx + 1}</td>
+                      <td style={styles.td}>
+                        <input
+                          type="text"
+                          value={row.serial_number || ""}
+                          onChange={(e) =>
+                            updateRow(row.client_id, "serial_number", e.target.value)
+                          }
+                          style={{
+                            width: "100%",
+                            border: "none",
+                            outline: "none",
+                            textAlign: "center",
+                          }}
+                        />
+                      </td>
                       <td style={styles.td}>
                         <input
                           value={row.product_name}
@@ -505,7 +528,7 @@ export default function App() {
             </table>
           </div>
 
-          {/* Buttons: Add, Save, Load, Show Audit */}
+          {/* Buttons */}
           <div
             style={{
               display: "grid",
