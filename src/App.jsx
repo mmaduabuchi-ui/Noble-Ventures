@@ -73,7 +73,7 @@ export default function App() {
     loadAllPages();
   }, []);
 
-  // Add new page
+  // ✅ Add new page
   const addPage = () => {
     const newId = Date.now().toString();
     const today = new Date().toLocaleDateString("en-GB");
@@ -90,32 +90,49 @@ export default function App() {
     setActivePageId(newId);
   };
 
-  // Delete page
-  const deletePage = (id) => {
+  // ✅ FIXED: Delete page (with Supabase sync)
+  const deletePage = async (id) => {
     if (!window.confirm("Are you sure you want to delete this page?")) return;
-    setPages((prev) => {
-      const remaining = prev.filter((p) => p.id !== id);
-      if (remaining.length === 0) {
-        const freshId = Date.now().toString();
-        setActivePageId(freshId);
-        return [
-          {
-            id: freshId,
-            date: new Date().toLocaleDateString("en-GB"),
-            title: "Untitled Page",
-            rows: [],
-          },
-        ];
-      }
-      if (activePageId === id) {
-        const idx = prev.findIndex((p) => p.id === id);
-        const next = remaining[idx - 1] || remaining[0];
-        setActivePageId(next.id);
-      }
-      return remaining;
-    });
 
-    supabase.from("pages").delete().eq("id", id);
+    try {
+      // 1️⃣ Delete all products belonging to this page first
+      await supabase.from("products").delete().eq("page_id", id);
+
+      // 2️⃣ Delete the page itself
+      const { error } = await supabase.from("pages").delete().eq("id", id);
+      if (error) throw error;
+
+      // 3️⃣ Update local state
+      setPages((prev) => {
+        const remaining = prev.filter((p) => p.id !== id);
+        if (remaining.length === 0) {
+          const freshId = Date.now().toString();
+          setActivePageId(freshId);
+          return [
+            {
+              id: freshId,
+              date: new Date().toLocaleDateString("en-GB"),
+              title: "Untitled Page",
+              rows: [],
+            },
+          ];
+        }
+        if (activePageId === id) {
+          const idx = prev.findIndex((p) => p.id === id);
+          const next = remaining[idx - 1] || remaining[0];
+          setActivePageId(next.id);
+        }
+        return remaining;
+      });
+
+      // 4️⃣ Reload all pages from Supabase to sync
+      await loadAllPages();
+
+      alert("✅ Page deleted successfully!");
+    } catch (err) {
+      console.error("❌ Delete error:", err);
+      alert("❌ Failed to delete page. Check console for details.");
+    }
   };
 
   const updatePageDate = (id, newDate) =>
@@ -123,7 +140,7 @@ export default function App() {
       prev.map((p) => (p.id === id ? { ...p, date: newDate } : p))
     );
 
-  // Add row
+  // ✅ Add row
   const addRow = () => {
     setPages((prev) =>
       prev.map((p) =>
@@ -134,7 +151,7 @@ export default function App() {
                 ...p.rows,
                 {
                   client_id: Date.now() + Math.random(),
-                  serial_number: "", // ✅ Manual entry, not auto
+                  serial_number: "",
                   product_name: "",
                   original_price: "",
                   price_sold: "",
@@ -147,7 +164,7 @@ export default function App() {
     );
   };
 
-  // Delete row
+  // ✅ Delete row
   const deleteRow = (rowId) => {
     if (!window.confirm("Are you sure you want to delete this row?")) return;
     setPages((prev) =>
@@ -159,7 +176,7 @@ export default function App() {
     );
   };
 
-  // Update row
+  // ✅ Update row
   const updateRow = (rowId, field, value) => {
     setPages((prev) =>
       prev.map((p) =>
@@ -182,7 +199,7 @@ export default function App() {
       )
     : [];
 
-  // Audit
+  // ✅ Audit summary
   const auditSummary = () => {
     if (!activePage) return { soldCount: 0, notSoldCount: 0, profit: 0 };
     const soldRows = activePage.rows.filter((r) => r.sold);
@@ -208,7 +225,6 @@ export default function App() {
   const savePage = async () => {
     if (!activePage) return;
     try {
-      // Save page
       const { error: pageError } = await supabase.from("pages").upsert([
         {
           id: activePage.id,
@@ -218,10 +234,8 @@ export default function App() {
       ]);
       if (pageError) throw pageError;
 
-      // Remove old rows
       await supabase.from("products").delete().eq("page_id", activePage.id);
 
-      // Insert new rows
       const { error } = await supabase.from("products").insert(
         activePage.rows.map((r) => ({
           page_id: activePage.id,
@@ -235,14 +249,14 @@ export default function App() {
       if (error) throw error;
 
       alert("✅ Page saved successfully!");
-      loadAllPages();
+      await loadAllPages();
     } catch (err) {
       console.error("❌ Save error:", err);
       alert("❌ Error saving products! Check console for details.");
     }
   };
 
-  // Load page
+  // ✅ Load page
   const loadPage = async () => {
     if (!activePage) return;
     try {
@@ -273,7 +287,7 @@ export default function App() {
     }
   };
 
-  // PWA
+  // ✅ PWA Setup
   useEffect(() => {
     const beforeInstallHandler = (e) => {
       e.preventDefault();
@@ -296,6 +310,7 @@ export default function App() {
     if (outcome === "accepted") setDeferredPrompt(null);
   };
 
+  // ✅ UI Rendering
   return (
     <div
       style={{
@@ -605,19 +620,19 @@ export default function App() {
             </div>
           )}
 
-          {/* Audit */}
+          {/* Audit Summary */}
           {showAudit && (
             <div
               style={{
-                marginTop: 6,
-                padding: 6,
-                border: "1px solid #D1D5DB",
-                borderRadius: 4,
+                background: "#F3F4F6",
+                padding: 8,
+                borderRadius: 6,
+                textAlign: "center",
               }}
             >
               <p>✅ Sold: {soldCount}</p>
               <p>❌ Not Sold: {notSoldCount}</p>
-              <p>💰 Profit/Loss: {profit}</p>
+              <p>💰 Profit: ₦{profit}</p>
             </div>
           )}
         </>
